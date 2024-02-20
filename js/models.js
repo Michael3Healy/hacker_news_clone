@@ -26,6 +26,15 @@ class Story {
 		// UNIMPLEMENTED: complete this function!
 		return 'hostname.com';
 	}
+
+	isFavorite() {
+		for (let fav of currentUser.favorites) {
+			if (fav.storyId === this.storyId) {
+				return 'fas';
+			}
+		}
+		return 'far';
+	}
 }
 
 /******************************************************************************
@@ -194,5 +203,34 @@ class User {
 			console.error('loginViaStoredCredentials failed', err);
 			return null;
 		}
+	}
+
+	async addFavorite(token, username, story) {
+		console.debug('addFavorite');
+		await axios.post(
+			`${BASE_URL}/users/${username}/favorites/${story.storyId}`,
+			{ token }
+		);
+		this.favorites.push(story);
+	}
+
+	async removeFavorite(token, username, story) {
+		console.debug('removeFavorite');
+		console.log(`${BASE_URL}/users/${username}/favorites/${story.storyId}`);
+		await axios({
+			url: `${BASE_URL}/users/${username}/favorites/${story.storyId}`,
+			method: 'DELETE',
+			data: { token },
+		});
+		this.favorites = this.favorites.filter(s => s.storyId !== story.storyId);
+	}
+
+	isOwnStory(story) {
+		for (let ownStory of this.ownStories) {
+			if (ownStory.storyId === story.storyId) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

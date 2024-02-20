@@ -21,3 +21,13 @@ nav {
   margin-left: auto;
   text-align: right;
 }
+
+.fas,
+.far {
+  cursor: pointer;
+  margin: 0 2px;
+}
+
+.fa-trash:hover {
+  color: red;
+}
