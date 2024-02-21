@@ -23,15 +23,19 @@ class Story {
 	/** Parses hostname out of URL and returns it. */
 
 	getHostName() {
-		// UNIMPLEMENTED: complete this function!
-		return 'hostname.com';
+		const parsedUrl = new URL(this.url);
+		return parsedUrl.hostname;
 	}
 
+	// Checks if a story has been favorited by the current user
 	isFavorite() {
-		for (let fav of currentUser.favorites) {
-			if (fav.storyId === this.storyId) {
-				return 'fas';
+		if (currentUser) {
+			for (let fav of currentUser.favorites) {
+				if (fav.storyId === this.storyId) {
+					return 'fas';
+				}
 			}
+			return 'far';
 		}
 		return 'far';
 	}
@@ -54,16 +58,18 @@ class StoryList {
 	 *  - returns the StoryList instance.
 	 */
 
-	static async getStories() {
+	static async getStories(skip=0) {
 		// Note presence of `static` keyword: this indicates that getStories is
 		//  **not** an instance method. Rather, it is a method that is called on the
 		//  class directly. Why doesn't it make sense for getStories to be an
 		//  instance method?
 
 		// query the /stories endpoint (no auth required)
+
 		const response = await axios({
 			url: `${BASE_URL}/stories`,
 			method: 'GET',
+			params: { skip },
 		});
 
 		// turn plain old story objects from API into instances of Story class
@@ -79,7 +85,6 @@ class StoryList {
 	 *
 	 * Returns the new Story instance
 	 */
-
 	async addStory(user, newStory) {
 		const postData = {
 			token: user.loginToken,
@@ -104,10 +109,7 @@ class User {
 	 *   - token
 	 */
 
-	constructor(
-		{ username, name, createdAt, favorites = [], ownStories = [] },
-		token
-	) {
+	constructor({ username, name, createdAt, favorites = [], ownStories = [] }, token) {
 		this.username = username;
 		this.name = name;
 		this.createdAt = createdAt;
@@ -205,15 +207,14 @@ class User {
 		}
 	}
 
+	// Adds user favorite to database and User.favorites object
 	async addFavorite(token, username, story) {
 		console.debug('addFavorite');
-		await axios.post(
-			`${BASE_URL}/users/${username}/favorites/${story.storyId}`,
-			{ token }
-		);
+		await axios.post(`${BASE_URL}/users/${username}/favorites/${story.storyId}`, { token });
 		this.favorites.push(story);
 	}
 
+	// Removes user favorite from database and User.favorites object
 	async removeFavorite(token, username, story) {
 		console.debug('removeFavorite');
 		console.log(`${BASE_URL}/users/${username}/favorites/${story.storyId}`);
@@ -225,6 +226,7 @@ class User {
 		this.favorites = this.favorites.filter(s => s.storyId !== story.storyId);
 	}
 
+	// Checks if a story was posted by the current user
 	isOwnStory(story) {
 		for (let ownStory of this.ownStories) {
 			if (ownStory.storyId === story.storyId) {

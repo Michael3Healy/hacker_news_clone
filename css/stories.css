@@ -31,9 +31,22 @@
 }
 
 .story-author {
-  margin-left: 2em;
+  margin-left: 1.8em;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  color: green;
+  display: block;
+  font-size: 1em;
 }
 
 .story-user {
+  font-size: 1em;
+  color: orange;
   display: block;
+  position: relative;
+  left: 1.8em;
+}
+
+li a {
+  font-weight: bold;
 }

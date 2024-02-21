@@ -27,7 +27,7 @@ function generateStoryMarkup(story) {
       <li id="${story.storyId}">
       <i class="${story.isFavorite()} fa-star"></i>
         <a href="${story.url}" target="a_blank" class="story-link">
-    ${story.title}
+    <strong>${story.title}</strong>
         </a>
         <small class="story-hostname">(${hostName})</small>
         <small class="story-author">by ${story.author}</small>
@@ -52,6 +52,7 @@ function putStoriesOnPage() {
 	$allStoriesList.show();
 }
 
+// Adds a new story submitted by the current user
 async function submitStory(evt) {
 	evt.preventDefault();
 	console.debug('submitStory', evt);
@@ -74,47 +75,101 @@ async function submitStory(evt) {
 
 $storyForm.on('submit', submitStory);
 
+// Returns a story object from a storyId
 const getStoryFromId = async storyId => {
 	const response = await axios.get(`${BASE_URL}/stories/${storyId}`);
 	return response.data.story;
 };
 
+// Event delegation to listen for clicks on stars (favorite) or trash (delete)
 $allStoriesList.on('click', async function (evt) {
-  const storyId = evt.target.parentElement.id;
+	const storyId = evt.target.parentElement.id;
 
-	if (evt.target.classList.contains('fa-star')) {
+	if (currentUser) {
+		if (evt.target.classList.contains('fa-star')) {
+			// If not a favorite...
+			if (evt.target.classList.contains('far')) {
+				// Make the star solid and add it to favorites in API
+				evt.target.classList.remove('far');
+				evt.target.classList.add('fas');
+				currentUser.addFavorite(currentUser.loginToken, currentUser.username, await getStoryFromId(storyId));
 
-    // If not a favorite...
-		if (evt.target.classList.contains('far')) {
+				// Otherwise, make the star regular and remove it from favorites in API
+			} else {
+				evt.target.classList.remove('fas');
+				evt.target.classList.add('far');
+				currentUser.removeFavorite(currentUser.loginToken, currentUser.username, await getStoryFromId(storyId));
+			}
 
-      // Make the star solid and add it to favorites
-			evt.target.classList.remove('far');
-			evt.target.classList.add('fas');
-			currentUser.addFavorite(
-				currentUser.loginToken,
-				currentUser.username,
-				await getStoryFromId(storyId)
-			);
+			// If the target is the trash can, remove the story from the dom and let API know it's gone
+		} else if (evt.target.classList.contains('fa-trash')) {
+			await axios({
+				url: `${BASE_URL}/stories/${storyId}`,
+				method: 'DELETE',
+				data: { token: currentUser.loginToken },
+			});
+			currentUser.ownStories = currentUser.ownStories.filter(s => s.storyId !== storyId);
+			evt.target.parentElement.remove();
+		}
+	}
+});
 
-      // Otherwise, make the star regular and remove it from favorites
-		} else {
-			evt.target.classList.remove('fas');
-			evt.target.classList.add('far');
-			currentUser.removeFavorite(
-				currentUser.loginToken,
-				currentUser.username,
-				await getStoryFromId(storyId)
-			);
+// Variable to ensure right amount of stories are skipped when scrolling to the bottom
+let loadCountMain = 1;
+let loadCountOwnStories = 1;
+let loadCountFavorites = 1;
+
+// Load more stories onto the dom, 15 at a time
+async function loadMoreStories(page) {
+	const storiesPerPage = 15;
+	
+
+	if (page === 'main') {
+		const newStories = await StoryList.getStories(skip);
+		for (let newStory of newStories.stories) {
+			let storyExists = false;
+			for (let currStory of storyList.stories) {
+				if (newStory.storyId === currStory.storyId) {
+					storyExists = true;
+					break;
+				}
+			}
+			if (!storyExists) {
+				storyList.stories.push(newStory);
+			}
 		}
 
-    // If the target is the trash can, remove it from the dom and let API know it's gone
-	} else if (evt.target.classList.contains('fa-trash')) {
-    await axios({
-			url: `${BASE_URL}/stories/${storyId}`,
-			method: 'DELETE',
-			data: { token: currentUser.loginToken },
+		putStoriesOnPage();
+		loadCountMain++;
+	} else if (page === 'ownStories') {
+		const user = await axios({
+			url: `${BASE_URL}/users/${currentUser.username}`,
+			method: 'GET',
+			params: { token: currentUser.loginToken },
 		});
-    currentUser.ownStories = currentUser.ownStories.filter(s => s.storyId !== storyId);
-    evt.target.parentElement.remove();
-  }
+		const skip = loadCountOwnStories * storiesPerPage;
+		const newOwnStories = user.data.user.stories.map(story => new Story(story));
+		storyList = new StoryList(newOwnStories);
+		putOwnStoriesOnPage(skip);
+		loadCountOwnStories++;
+	} else if (page === 'favorites') {
+		putFavoritesOnPage();
+		loadCountFavorites++;
+	}
+}
+
+const reachedBottomOfPage = () => {
+	return this.window.scrollY + this.window.innerHeight >= this.document.documentElement.scrollHeight;
+};
+
+window.addEventListener('scroll', function () {
+	if (reachedBottomOfPage()) {
+		if (currentPage === 'main') {
+			loadMoreStories(currentPage);
+		} else if (currentPage === 'ownStories') {
+			loadMoreStories(currentPage);
+		} else if (currentPage === 'favorites') {
+			loadMoreStories(currentPage);
+		}
+	}
 });
