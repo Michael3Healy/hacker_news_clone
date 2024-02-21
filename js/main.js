@@ -18,6 +18,7 @@ const $navLogOut = $('#nav-logout');
 const $navAddStory = $('#add-story');
 const $navFavorites = $('#favorites');
 const $navMyStories = $('#own-stories');
+const $navMainPage = $('#nav-all')
 
 /** To make it easier for individual components to show just themselves, this
  * is a useful function that hides pretty much everything on the page. After

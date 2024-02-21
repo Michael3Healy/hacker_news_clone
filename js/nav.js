@@ -3,16 +3,14 @@
 /******************************************************************************
  * Handling navbar clicks and updating navbar
  */
-
-let currentPage = 'main';
-
+let currentPage;
 /** Show main list of all stories when click site name */
 
 function navAllStories(evt) {
 	console.debug('navAllStories', evt);
 	hidePageComponents();
 	putStoriesOnPage();
-	currentPage = 'main';
+	currentPage = 'mainPage';
 }
 
 $body.on('click', '#nav-all', navAllStories);
@@ -38,9 +36,11 @@ function updateNavOnLogin() {
 	$navUserProfile.text(`${currentUser.username}`).show();
 }
 
+// Handles click on submit nav button
 function navSubmitStory(evt) {
 	console.debug('navSubmitStory', evt);
 	if (currentUser) {
+		currentPage = 'submissionPage';
 		hidePageComponents();
 		$storyForm.show();
 	} else {
@@ -48,10 +48,11 @@ function navSubmitStory(evt) {
 	}
 }
 
-function putFavoritesOnPage() {
+// Puts only user's favorite stories on the page
+async function putFavoritesOnPage() {
 	console.debug('putFavoritesOnPage');
 	$allStoriesList.empty();
-
+	storyList = await StoryList.getStories();
 	// loop through all of our stories and generate HTML for them
 	for (let story of storyList.stories) {
 		const $story = generateStoryMarkup(story);
@@ -59,29 +60,23 @@ function putFavoritesOnPage() {
 			$allStoriesList.append($story);
 		}
 	}
-
+	currentPage = 'favoritesPage';
 	$allStoriesList.show();
 }
 
-function putOwnStoriesOnPage(skip=0) {
+// Puts user's own stories on the page and adds a trash can to them
+async function putOwnStoriesOnPage() {
 	console.debug('putOwnStoriesOnPage');
 	$allStoriesList.empty();
-	let storiesRendered = 0;
+	storyList = await StoryList.getStories();
 
-	for (let i = skip; i < storyList.stories.length; i++) {
-		const story = storyList.stories[i];
-		if (storiesRendered < 15) {
-			const $story = generateStoryMarkup(story);
-			if (currentUser.isOwnStory(story)) {
-				$allStoriesList.append($story);
-				storiesRendered += 1;
-			}
-		} else {
-			break;
+	for (let story of storyList.stories) {
+		const $story = generateStoryMarkup(story);
+		if (currentUser.isOwnStory(story)) {
+			$allStoriesList.append($story);
 		}
 	}
-	storiesRendered = 0;
-
+	currentPage = 'ownStoriesPage';
 	// Add delete icon to each story of user
 	const ownStoriesLis = $allStoriesList.find('li');
 	for (const liElem of ownStoriesLis) {
@@ -89,21 +84,21 @@ function putOwnStoriesOnPage(skip=0) {
 		newSpan.classList.add('fas', 'fa-trash');
 		liElem.prepend(newSpan);
 	}
-	currentPage = 'ownStories';
 	$allStoriesList.show();
 }
 
+// Handles click on favorites nav link
 function navShowFavoritesPage(evt) {
 	console.debug('navShowFavoritesPage', evt);
 	if (currentUser) {
 		hidePageComponents();
 		putFavoritesOnPage();
-		currentPage = 'favorites';
 	} else {
 		alert('You must be logged in to see your favorite stories!');
 	}
 }
 
+// Handles click on my stories nav link
 function navShowOwnStoriesPage(evt) {
 	console.debug('navShowOwnStoriesPage', evt);
 	if (currentUser) {

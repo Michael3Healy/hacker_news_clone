@@ -6,7 +6,7 @@ let storyList;
 /** Get and show stories when site first loads. */
 
 async function getAndShowStoriesOnStart() {
-	storyList = await StoryList.getStories();
+	storyList = await StoryList.getStories(0, 15);
 	$storiesLoadingMsg.remove();
 
 	putStoriesOnPage();
@@ -38,11 +38,10 @@ function generateStoryMarkup(story) {
 
 /** Gets list of stories from server, generates their HTML, and puts on page. */
 
-function putStoriesOnPage() {
+async function putStoriesOnPage() {
 	console.debug('putStoriesOnPage');
 
 	$allStoriesList.empty();
-
 	// loop through all of our stories and generate HTML for them
 	for (let story of storyList.stories) {
 		const $story = generateStoryMarkup(story);
@@ -50,6 +49,7 @@ function putStoriesOnPage() {
 	}
 
 	$allStoriesList.show();
+	currentPage = 'mainPage'
 }
 
 // Adds a new story submitted by the current user
@@ -115,47 +115,29 @@ $allStoriesList.on('click', async function (evt) {
 });
 
 // Variable to ensure right amount of stories are skipped when scrolling to the bottom
-let loadCountMain = 1;
-let loadCountOwnStories = 1;
-let loadCountFavorites = 1;
+let loadCount = 1;
 
 // Load more stories onto the dom, 15 at a time
-async function loadMoreStories(page) {
+async function loadMoreStories() {
+	console.debug('loadMoreStories')
 	const storiesPerPage = 15;
-	
+	let skip = storiesPerPage * loadCount;
+	const newStories = await StoryList.getStories(skip, 15);
 
-	if (page === 'main') {
-		const newStories = await StoryList.getStories(skip);
-		for (let newStory of newStories.stories) {
-			let storyExists = false;
-			for (let currStory of storyList.stories) {
-				if (newStory.storyId === currStory.storyId) {
-					storyExists = true;
-					break;
-				}
-			}
-			if (!storyExists) {
-				storyList.stories.push(newStory);
+	for (let newStory of newStories.stories) {
+		let storyExists = false;
+		for (let currStory of storyList.stories) {
+			if (newStory.storyId === currStory.storyId) {
+				storyExists = true;
+				break;
 			}
 		}
-
-		putStoriesOnPage();
-		loadCountMain++;
-	} else if (page === 'ownStories') {
-		const user = await axios({
-			url: `${BASE_URL}/users/${currentUser.username}`,
-			method: 'GET',
-			params: { token: currentUser.loginToken },
-		});
-		const skip = loadCountOwnStories * storiesPerPage;
-		const newOwnStories = user.data.user.stories.map(story => new Story(story));
-		storyList = new StoryList(newOwnStories);
-		putOwnStoriesOnPage(skip);
-		loadCountOwnStories++;
-	} else if (page === 'favorites') {
-		putFavoritesOnPage();
-		loadCountFavorites++;
+		if (!storyExists) {
+			storyList.stories.push(newStory);
+		}
 	}
+	putStoriesOnPage();
+	loadCount++;
 }
 
 const reachedBottomOfPage = () => {
@@ -163,13 +145,7 @@ const reachedBottomOfPage = () => {
 };
 
 window.addEventListener('scroll', function () {
-	if (reachedBottomOfPage()) {
-		if (currentPage === 'main') {
-			loadMoreStories(currentPage);
-		} else if (currentPage === 'ownStories') {
-			loadMoreStories(currentPage);
-		} else if (currentPage === 'favorites') {
-			loadMoreStories(currentPage);
-		}
+	if (reachedBottomOfPage() && currentPage === 'mainPage') {
+		loadMoreStories();
 	}
 });
